@@ -326,16 +326,42 @@ document.addEventListener("DOMContentLoaded", () => {
       const replayBtn = document.createElement("button");
       replayBtn.textContent = "🔊";
       replayBtn.className = "replay-btn";
-      replayBtn.onclick = () => {
-        const plainText = div.innerText;
-        const utterance = new SpeechSynthesisUtterance(plainText);
-        window.speechSynthesis.speak(utterance);
+      replayBtn.onclick = async () => {
+        try {
+          if (div.dataset.hqAudio) {
+            const audio = new Audio(div.dataset.hqAudio);
+            await audio.play();
+          } else {
+            const plainText = div.innerText;
+            const utterance = new SpeechSynthesisUtterance(plainText);
+            window.speechSynthesis.speak(utterance);
+          }
+        } catch (err) {
+          console.warn("HQ audio playback failed, falling back:", err);
+          const plainText = div.innerText;
+          const utterance = new SpeechSynthesisUtterance(plainText);
+          window.speechSynthesis.speak(utterance);
+        }
       };
 
       wrapper.appendChild(avatar);
       wrapper.appendChild(div);
       wrapper.appendChild(replayBtn);
       messages.appendChild(wrapper);
+
+      // 🔊 Pre-generate HQ audio via tts.js
+      fetch(ttsEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: cleaned, voice: "alloy", format: "mp3" })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.audioBase64) {
+            div.dataset.hqAudio = `data:${data.mimeType};base64,${data.audioBase64}`;
+          }
+        })
+        .catch(err => console.error("TTS generation failed:", err));
     } else {
       div.className = "bubble user";
       div.innerHTML = content;
