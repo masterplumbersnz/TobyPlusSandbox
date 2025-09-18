@@ -18,10 +18,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let thread_id = null;
 
   // === Endpoints ===
-  const transcribeEndpoint = "https://resilient-palmier-22bdf1.netlify.app/.netlify/functions/transcribe";
-  const ttsEndpoint = "https://resilient-palmier-22bdf1.netlify.app/.netlify/functions/tts";
-  const startRunEndpoint = "https://resilient-palmier-22bdf1.netlify.app/.netlify/functions/start-run";
-  const checkRunEndpoint = "https://resilient-palmier-22bdf1.netlify.app/.netlify/functions/check-run";
+  const transcribeEndpoint = "https://tobyplussandbox.netlify.app/.netlify/functions/transcribe";
+  const ttsEndpoint = "https://tobyplussandbox.netlify.app/.netlify/functions/tts";
+  const startRunEndpoint = "https://tobyplussandbox.netlify.app/.netlify/functions/start-run";
+  const checkRunEndpoint = "https://tobyplussandbox.netlify.app/.netlify/functions/check-run";
 
   // === Recording state ===
   let mediaStream = null;
