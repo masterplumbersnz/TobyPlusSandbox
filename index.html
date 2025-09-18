@@ -16,6 +16,18 @@
       width: 100%;
     }
 
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     body {
       font-family: "Segoe UI", Calibri, sans-serif;
       font-size: 16px;
@@ -106,22 +118,15 @@
     }
 
     .close-btn {
-  display: none;
-  background: transparent;
-  border: none;
-  font-size: 18px;
-  font-weight: bold;
-  cursor: pointer;
-  color: #333;
-  margin-bottom: 0.5rem;
-}
-
-@media (max-width: 600px) {
-  .close-btn {
-    display: block;
-  }
-}
-
+      display: none;
+      background: transparent;
+      border: none;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
 
     /* === Chatbot section === */
     #chatbot-section {
@@ -208,18 +213,6 @@
       width: 100%;
     }
 
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-
     .button-group button {
       flex: 1;
       font-size: 13px;
@@ -297,6 +290,22 @@
       background: #49a5aa;
     }
 
+    /* Overlay */
+    #sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 998;
+    }
+
+    #sidebar-overlay.active {
+      display: block;
+    }
+
     /* Drawer on mobile */
     @media (max-width: 600px) {
       #conversations-panel {
@@ -308,8 +317,9 @@
         max-width: 100%;
         z-index: 999;
         transform: translateY(-100%);
-        border-right: none;
-        border-bottom: 1px solid #ddd;
+        background: #fafafa;
+        transition: transform 0.3s ease;
+        overflow-y: auto;
       }
 
       #conversations-panel.open {
@@ -349,16 +359,18 @@
   <!-- Mobile toggle -->
   <button id="toggle-conversations" class="mobile-toggle">☰ Conversations</button>
 
+  <!-- Overlay -->
+  <div id="sidebar-overlay"></div>
+
   <div id="app-container">
     <!-- Sidebar -->
     <aside id="conversations-panel">
-  <button id="close-conversations" class="close-btn">✖ Close</button>
-  <h3>Previous Conversations</h3>
-  <button id="new-conversation">➕ New Chat</button>
-  <ul id="conversations-list"></ul>
-  <button id="clear-conversations">Clear All</button>
-</aside>
-
+      <button id="close-conversations" class="close-btn">✖ Close</button>
+      <h3>Previous Conversations</h3>
+      <button id="new-conversation">➕ New Chat</button>
+      <ul id="conversations-list"></ul>
+      <button id="clear-conversations">Clear All</button>
+    </aside>
 
     <!-- Chatbot -->
     <section id="chatbot-section" role="main" aria-label="Ask Toby chatbot">
