@@ -245,6 +245,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // === Thinking bubble with typing dots ===
+  const createThinkingBubble = () => {
+    const div = document.createElement("div");
+    div.className = "bubble bot thinking";
+    div.innerHTML = `
+      <span class="typing-dots">
+        <span></span><span></span><span></span>
+      </span> Toby is thinking...
+    `;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    return div;
+  };
+
   // === Form submit ===
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -255,7 +269,8 @@ document.addEventListener("DOMContentLoaded", () => {
     createBubble(message, "user");
     input.value = "";
     input.style.height = "auto";
-    const thinkingBubble = createBubble('<span class="spinner"></span> Toby is thinking...', "bot", false);
+
+    const thinkingBubble = createThinkingBubble();
     updateDebug("Message sent, waiting for reply…");
 
     try {
