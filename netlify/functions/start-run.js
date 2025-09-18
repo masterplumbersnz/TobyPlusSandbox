@@ -1,5 +1,5 @@
 const fetch = require('node-fetch');
-const ALLOWED_ORIGIN = 'https://masterplumbers.org.nz';
+const ALLOWED_ORIGIN = 'https://masterplumbers.org.nz', 'https://masterplumbersnz.github.io/TobyPlusSandbox';
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
