@@ -149,8 +149,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (toggleBtn && sidebar) {
-    toggleBtn.addEventListener("click", openSidebar);
-  }
+  toggleBtn.addEventListener("click", () => {
+    if (sidebar.classList.contains("open")) {
+      closeSidebar(); // ✅ close if already open
+    } else {
+      openSidebar();  // ✅ open if closed
+    }
+  });
+}
+
 
   if (closeBtn && sidebar) {
     closeBtn.addEventListener("click", closeSidebar);
