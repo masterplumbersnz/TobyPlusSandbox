@@ -4,33 +4,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const messages = document.getElementById("messages");
   const micBtn = document.getElementById("mic-btn");
 
-  // === Stop Talking button ===
-  const stopTalkBtn = document.createElement("button");
-  stopTalkBtn.textContent = "🛑 Stop Playback";
-  stopTalkBtn.className = "stop-talk-btn";
-  stopTalkBtn.title = "Stop playback";
-  stopTalkBtn.onclick = () => {
-    window.speechSynthesis.cancel();
-    updateDebug("Speech stopped by user");
-  };
-  document.querySelector(".button-group").appendChild(stopTalkBtn);
-
   let thread_id = null;
   let currentConversationId = Date.now();
+
+  // === Track current audio ===
+  let currentAudio = null;
 
   // === Endpoints ===
   const transcribeEndpoint = "https://tobyplussandbox.netlify.app/.netlify/functions/transcribe";
   const ttsEndpoint = "https://tobyplussandbox.netlify.app/.netlify/functions/tts";
   const startRunEndpoint = "https://tobyplussandbox.netlify.app/.netlify/functions/start-run";
   const checkRunEndpoint = "https://tobyplussandbox.netlify.app/.netlify/functions/check-run";
-
-  // === Recording state ===
-  let mediaStream = null;
-  let mediaRecorder = null;
-  let chunks = [];
-  let isRecording = false;
-  let hasStopped = false;
-  let isTranscribing = false;
 
   // === Debug overlay ===
   const debugOverlay = document.createElement("div");
@@ -40,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const updateDebug = (msg) => (debugOverlay.innerText = msg);
 
   // === Auto-Speak Toggle ===
-  let autoSpeakEnabled = true; // ✅ default ON
+  let autoSpeakEnabled = true; // default ON
   const toggleSpeakBtn = document.getElementById("toggle-speak");
   if (toggleSpeakBtn) {
     toggleSpeakBtn.addEventListener("click", () => {
@@ -49,6 +33,24 @@ document.addEventListener("DOMContentLoaded", () => {
       toggleSpeakBtn.classList.toggle("off", !autoSpeakEnabled);
     });
   }
+
+  // === Stop Playback button ===
+  const stopTalkBtn = document.createElement("button");
+  stopTalkBtn.textContent = "🛑 Stop Playback";
+  stopTalkBtn.className = "stop-talk-btn";
+  stopTalkBtn.title = "Stop playback";
+  stopTalkBtn.onclick = () => {
+    // Cancel browser speech
+    window.speechSynthesis.cancel();
+    // Stop HQ audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio = null;
+    }
+    updateDebug("Speech/audio stopped by user");
+  };
+  document.querySelector(".button-group").appendChild(stopTalkBtn);
 
   // === Conversation Storage ===
   function saveConversation() {
@@ -105,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
       li.appendChild(renameBtn);
       li.onclick = () => {
         loadConversation(conv.id);
-        closeSidebar(); // ✅ auto-close on old chat
+        closeSidebar();
       };
       list.appendChild(li);
     });
@@ -132,7 +134,7 @@ document.addEventListener("DOMContentLoaded", () => {
     currentConversationId = Date.now();
     messages.innerHTML = "";
     saveConversation();
-    closeSidebar(); // ✅ auto-close on New Chat
+    closeSidebar();
   });
 
   // === Sidebar Toggle (Mobile) ===
@@ -150,15 +152,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (overlay) overlay.classList.remove("active");
   }
 
-  if (toggleBtn && sidebar) {
-    toggleBtn.addEventListener("click", () => {
-      if (sidebar.classList.contains("open")) {
-        closeSidebar();
-      } else {
-        openSidebar();
-      }
-    });
-  }
+  toggleBtn?.addEventListener("click", () => {
+    if (sidebar.classList.contains("open")) closeSidebar();
+    else openSidebar();
+  });
   closeBtn?.addEventListener("click", closeSidebar);
   overlay?.addEventListener("click", closeSidebar);
 
@@ -175,7 +172,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function startRecording() {
     try {
-      hasStopped = false;
       chunks = [];
       mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = pickAudioMime();
@@ -185,18 +181,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.data && e.data.size > 0) chunks.push(e.data);
       };
       mediaRecorder.onstop = async () => {
-        if (hasStopped) return;
-        hasStopped = true;
         if (!chunks.length) return;
-
         updateDebug("Recording stopped, sending for transcription…");
         const blob = new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" });
-        if (!isTranscribing) await sendAudioForTranscription(blob);
+        await sendAudioForTranscription(blob);
         mediaStream?.getTracks().forEach((t) => t.stop());
       };
 
       mediaRecorder.start();
-      isRecording = true;
       micBtn.textContent = "🛑";
       updateDebug("Recording started…");
     } catch (err) {
@@ -206,16 +198,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function stopRecording() {
-    if (!isRecording || !mediaRecorder) return;
-    isRecording = false;
+    if (!mediaRecorder) return;
+    mediaRecorder.stop();
     micBtn.textContent = "🎙️";
     updateDebug("Stopping recording...");
-    mediaRecorder.stop();
   }
 
   async function sendAudioForTranscription(blob) {
-    if (isTranscribing) return;
-    isTranscribing = true;
     try {
       const ab = await blob.arrayBuffer();
       const base64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
@@ -237,14 +226,15 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
       updateDebug("Transcription error: " + err.message);
       createBubble("⚠️ Transcription failed. Try again.", "bot");
-    } finally {
-      isTranscribing = false;
     }
   }
 
   micBtn.addEventListener("click", async () => {
-    if (!isRecording) await startRecording();
-    else stopRecording();
+    if (!mediaRecorder || mediaRecorder.state === "inactive") {
+      await startRecording();
+    } else {
+      stopRecording();
+    }
   });
 
   // === Enter-to-send ===
@@ -338,17 +328,24 @@ document.addEventListener("DOMContentLoaded", () => {
       replayBtn.textContent = "🔊";
       replayBtn.className = "replay-btn";
       replayBtn.onclick = async () => {
+        // Cancel any existing speech first
+        window.speechSynthesis.cancel();
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+          currentAudio = null;
+        }
         try {
           if (div.dataset.hqAudio) {
-            const audio = new Audio(div.dataset.hqAudio);
-            await audio.play();
+            currentAudio = new Audio(div.dataset.hqAudio);
+            await currentAudio.play();
           } else {
             const plainText = div.innerText;
             const utterance = new SpeechSynthesisUtterance(plainText);
             window.speechSynthesis.speak(utterance);
           }
         } catch (err) {
-          console.warn("HQ audio playback failed, falling back:", err);
+          console.warn("Replay failed, falling back:", err);
           const plainText = div.innerText;
           const utterance = new SpeechSynthesisUtterance(plainText);
           window.speechSynthesis.speak(utterance);
@@ -360,14 +357,20 @@ document.addEventListener("DOMContentLoaded", () => {
       wrapper.appendChild(replayBtn);
       messages.appendChild(wrapper);
 
-      // 🔊 Auto-speak immediately (only if enabled)
+      // 🔊 Auto-speak (cancel anything already playing first)
       if (narrate && autoSpeakEnabled) {
+        window.speechSynthesis.cancel();
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+          currentAudio = null;
+        }
         const plainText = div.innerText;
         const utterance = new SpeechSynthesisUtterance(plainText);
         window.speechSynthesis.speak(utterance);
       }
 
-      // 🔊 Pre-generate HQ audio via tts.js
+      // Pre-generate HQ audio
       fetch(ttsEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
