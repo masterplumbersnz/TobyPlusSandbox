@@ -349,6 +349,13 @@ document.addEventListener("DOMContentLoaded", () => {
       wrapper.appendChild(replayBtn);
       messages.appendChild(wrapper);
 
+      // 🔊 Auto-speak immediately
+      if (narrate) {
+        const plainText = div.innerText;
+        const utterance = new SpeechSynthesisUtterance(plainText);
+        window.speechSynthesis.speak(utterance);
+      }
+
       // 🔊 Pre-generate HQ audio via tts.js
       fetch(ttsEndpoint, {
         method: "POST",
