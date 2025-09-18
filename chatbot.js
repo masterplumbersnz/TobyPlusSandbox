@@ -328,6 +328,15 @@ document.addEventListener("DOMContentLoaded", () => {
       replayBtn.textContent = "🔊";
       replayBtn.className = "replay-btn";
       replayBtn.onclick = async () => {
+        // If already playing, stop and reset
+        if (currentAudio && !currentAudio.paused) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+          currentAudio = null;
+          replayBtn.textContent = "🔊";
+          return;
+        }
+
         // Cancel any existing speech first
         window.speechSynthesis.cancel();
         if (currentAudio) {
@@ -335,19 +344,39 @@ document.addEventListener("DOMContentLoaded", () => {
           currentAudio.currentTime = 0;
           currentAudio = null;
         }
+
         try {
           if (div.dataset.hqAudio) {
             currentAudio = new Audio(div.dataset.hqAudio);
+            replayBtn.textContent = "⏸️";
+
+            currentAudio.onended = () => {
+              replayBtn.textContent = "🔊";
+              currentAudio = null;
+            };
+
             await currentAudio.play();
           } else {
             const plainText = div.innerText;
             const utterance = new SpeechSynthesisUtterance(plainText);
+
+            replayBtn.textContent = "⏸️";
+            utterance.onend = () => {
+              replayBtn.textContent = "🔊";
+            };
+
             window.speechSynthesis.speak(utterance);
           }
         } catch (err) {
           console.warn("Replay failed, falling back:", err);
           const plainText = div.innerText;
           const utterance = new SpeechSynthesisUtterance(plainText);
+
+          replayBtn.textContent = "⏸️";
+          utterance.onend = () => {
+            replayBtn.textContent = "🔊";
+          };
+
           window.speechSynthesis.speak(utterance);
         }
       };
