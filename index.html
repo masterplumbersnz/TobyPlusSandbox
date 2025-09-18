@@ -25,6 +25,7 @@
     display: flex;
     flex-direction: column;
     height: 100dvh;
+  
   }
 
   #app-container {
@@ -41,6 +42,16 @@
     padding: 1rem;
     box-sizing: border-box;
     overflow-y: auto;
+  }
+
+  #new-conversation {
+    border-radius: 20px;
+    border: none;
+    padding: 10px;
+    width: 100%;
+    background-color: #5ac5cc;
+    color: white;
+    font-weight: bold;
   }
 
   #conversations-panel h3 {
@@ -66,6 +77,19 @@
     background: #eee;
   }
 
+  #clear-conversations {
+    padding: 10px;
+    border: none;
+    border-radius: 20px;
+    width: 100%;
+    align-items: center;
+    font-weight: bold;
+    background-color: 
+
+  }
+  button:hover {
+    scale: 1.05
+  }
   .close-btn {
     display: none;
     background: transparent;
@@ -185,11 +209,17 @@
   #mic-btn {
     background-color: #00395d;
     color: white;
+    border: none;
   }
 
   .stop-talk-btn {
     background-color: #d9534f;
     color: white;
+    border: none;
+  }
+
+  .mobile-toggle {
+    display: none;
   }
 
   form.chat-form button[type="submit"] {
@@ -197,9 +227,10 @@
     color: white;
     font-size: 16px;
     font-weight: 600;
-    border-radius: 20px;
+    border-radius: 10px;
     width: 100%;
     padding: 0.6rem 1rem;
+    border: none;
   }
 
   .replay-btn {
@@ -294,7 +325,7 @@
     <!-- Sidebar -->
     <aside id="conversations-panel">
       <button id="close-conversations" class="close-btn">✖ Close</button>
-      <h3>Previous Conversations</h3>
+      <h3>Previous Chats</h3>
       <button id="new-conversation">➕ New Chat</button>
       <ul id="conversations-list"></ul>
       <button id="clear-conversations">Clear All</button>
