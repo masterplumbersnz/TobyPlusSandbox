@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function arrayBufferToBase64(buffer) {
     let binary = "";
     const bytes = new Uint8Array(buffer);
-    const chunkSize = 0x8000; // 32KB
+    const chunkSize = 0x8000;
     for (let i = 0; i < bytes.length; i += chunkSize) {
       const chunk = bytes.subarray(i, i + chunkSize);
       binary += String.fromCharCode.apply(null, chunk);
@@ -90,6 +90,77 @@ document.addEventListener("DOMContentLoaded", () => {
     updateDebug("Speech/audio stopped by user");
   };
   document.querySelector(".button-group").appendChild(stopTalkBtn);
+
+  // === Conversation Storage ===
+  function saveConversation() {
+    const allBubbles = [...messages.querySelectorAll(".bubble")];
+    const transcript = allBubbles.map(b => ({
+      sender: b.classList.contains("user") ? "user" : "bot",
+      content: b.innerHTML
+    }));
+
+    const conversations = JSON.parse(localStorage.getItem("conversations") || "[]");
+    let existing = conversations.find(c => c.id === currentConversationId);
+
+    const firstUserMessage = transcript.find(m => m.sender === "user");
+    const newTitle = firstUserMessage ? firstUserMessage.content.slice(0, 30) : "Untitled";
+
+    if (existing) {
+      existing.messages = transcript;
+      existing.title = newTitle;
+    } else {
+      conversations.push({ id: currentConversationId, title: newTitle, messages: transcript });
+    }
+
+    localStorage.setItem("conversations", JSON.stringify(conversations));
+    loadConversationList();
+  }
+
+  function loadConversationList() {
+    const conversations = JSON.parse(localStorage.getItem("conversations") || "[]");
+    const list = document.getElementById("conversations-list");
+    if (!list) return;
+    list.innerHTML = "";
+
+    conversations.forEach(conv => {
+      const li = document.createElement("li");
+
+      const titleSpan = document.createElement("span");
+      titleSpan.textContent = conv.title;
+
+      const renameBtn = document.createElement("button");
+      renameBtn.textContent = "✏️";
+      renameBtn.style.marginLeft = "8px";
+      renameBtn.style.fontSize = "12px";
+      renameBtn.onclick = (e) => {
+        e.stopPropagation();
+        const newName = prompt("Rename conversation:", conv.title);
+        if (newName && newName.trim()) {
+          conv.title = newName.trim();
+          localStorage.setItem("conversations", JSON.stringify(conversations));
+          loadConversationList();
+        }
+      };
+
+      li.appendChild(titleSpan);
+      li.appendChild(renameBtn);
+      li.onclick = () => {
+        loadConversation(conv.id);
+        closeSidebar?.();
+      };
+      list.appendChild(li);
+    });
+  }
+
+  function loadConversation(id) {
+    const conversations = JSON.parse(localStorage.getItem("conversations") || "[]");
+    const conv = conversations.find(c => c.id === id);
+    if (!conv) return;
+
+    messages.innerHTML = "";
+    conv.messages.forEach(m => createBubble(m.content, m.sender, false));
+    currentConversationId = conv.id;
+  }
 
   // === Voice & Transcription ===
   const pickAudioMime = () => {
@@ -154,7 +225,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const { text } = await res.json();
       if (text) {
         input.value = text;
-        // ✅ Safe submit fallback
         if (typeof form.requestSubmit === "function") {
           form.requestSubmit();
         } else {
