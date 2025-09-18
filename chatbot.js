@@ -465,7 +465,7 @@ document.addEventListener("DOMContentLoaded", () => {
     messages.scrollTop = messages.scrollHeight;
   });
 
-    // === Sidebar toggle (mobile) ===
+      // === Sidebar toggle (mobile) ===
   const toggleBtn = document.getElementById("toggle-conversations");
   const sidebar = document.getElementById("conversations-panel");
   const overlay = document.getElementById("sidebar-overlay");
@@ -474,12 +474,19 @@ document.addEventListener("DOMContentLoaded", () => {
   function closeSidebar() {
     sidebar?.classList.remove("open");
     overlay?.classList.remove("active");
+    toggleBtn?.classList.remove("hidden"); // bring button back
   }
 
   if (toggleBtn && sidebar) {
     toggleBtn.addEventListener("click", () => {
-      sidebar.classList.toggle("open");
-      overlay?.classList.toggle("active");
+      const isOpen = sidebar.classList.toggle("open");
+      overlay?.classList.toggle("active", isOpen);
+
+      if (isOpen) {
+        toggleBtn.classList.add("hidden"); // hide button when open
+      } else {
+        toggleBtn.classList.remove("hidden");
+      }
     });
   }
 
@@ -490,6 +497,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (closeBtn && sidebar) {
     closeBtn.addEventListener("click", closeSidebar);
   }
+
 
   // === Init ===
   loadConversationList();
