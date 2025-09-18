@@ -24,15 +24,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const startRunEndpoint = "https://tobyplussandbox.netlify.app/.netlify/functions/start-run";
   const checkRunEndpoint = "https://tobyplussandbox.netlify.app/.netlify/functions/check-run";
 
+  // === Recording state ===
+  let mediaStream = null;
+  let mediaRecorder = null;
+  let chunks = [];
+  let isRecording = false;
+  let hasStopped = false;
+  let isTranscribing = false;
+
   // === Debug overlay ===
   const debugOverlay = document.createElement("div");
   debugOverlay.className = "debug-overlay";
   debugOverlay.innerText = "🔍 Debug ready";
   document.body.appendChild(debugOverlay);
-
-  const updateDebug = (msg) => {
-    debugOverlay.innerText = msg;
-  };
+  const updateDebug = (msg) => (debugOverlay.innerText = msg);
 
   // === Conversation Storage ===
   function saveConversation() {
@@ -52,11 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
       existing.messages = transcript;
       existing.title = newTitle;
     } else {
-      conversations.push({
-        id: currentConversationId,
-        title: newTitle,
-        messages: transcript
-      });
+      conversations.push({ id: currentConversationId, title: newTitle, messages: transcript });
     }
 
     localStorage.setItem("conversations", JSON.stringify(conversations));
@@ -93,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
       li.appendChild(renameBtn);
       li.onclick = () => {
         loadConversation(conv.id);
-        closeSidebar(); // ✅ auto-close sidebar when selecting old conversation
+        closeSidebar(); // ✅ auto-close on old chat
       };
       list.appendChild(li);
     });
@@ -105,32 +106,23 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!conv) return;
 
     messages.innerHTML = "";
-    conv.messages.forEach(m => {
-      createBubble(m.content, m.sender, false);
-    });
-
+    conv.messages.forEach(m => createBubble(m.content, m.sender, false));
     currentConversationId = conv.id;
   }
 
   // === Clear Conversations ===
-  const clearBtn = document.getElementById("clear-conversations");
-  if (clearBtn) {
-    clearBtn.addEventListener("click", () => {
-      localStorage.removeItem("conversations");
-      loadConversationList();
-    });
-  }
+  document.getElementById("clear-conversations")?.addEventListener("click", () => {
+    localStorage.removeItem("conversations");
+    loadConversationList();
+  });
 
   // === New Chat ===
-  const newConvBtn = document.getElementById("new-conversation");
-  if (newConvBtn) {
-    newConvBtn.addEventListener("click", () => {
-      currentConversationId = Date.now();
-      messages.innerHTML = "";
-      saveConversation();
-      closeSidebar(); // ✅ auto-close sidebar on New Chat
-    });
-  }
+  document.getElementById("new-conversation")?.addEventListener("click", () => {
+    currentConversationId = Date.now();
+    messages.innerHTML = "";
+    saveConversation();
+    closeSidebar(); // ✅ auto-close on New Chat
+  });
 
   // === Sidebar Toggle (Mobile) ===
   const toggleBtn = document.getElementById("toggle-conversations");
@@ -142,30 +134,107 @@ document.addEventListener("DOMContentLoaded", () => {
     sidebar.classList.add("open");
     if (overlay) overlay.classList.add("active");
   }
-
   function closeSidebar() {
     sidebar.classList.remove("open");
     if (overlay) overlay.classList.remove("active");
   }
 
   if (toggleBtn && sidebar) {
-  toggleBtn.addEventListener("click", () => {
-    if (sidebar.classList.contains("open")) {
-      closeSidebar(); // ✅ close if already open
-    } else {
-      openSidebar();  // ✅ open if closed
+    toggleBtn.addEventListener("click", () => {
+      if (sidebar.classList.contains("open")) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    });
+  }
+  closeBtn?.addEventListener("click", closeSidebar);
+  overlay?.addEventListener("click", closeSidebar);
+
+  // === Voice & Transcription ===
+  const pickAudioMime = () => {
+    if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus"))
+      return "audio/webm;codecs=opus";
+    if (MediaRecorder.isTypeSupported("audio/webm"))
+      return "audio/webm";
+    if (MediaRecorder.isTypeSupported("audio/mp4"))
+      return "audio/mp4";
+    return "";
+  };
+
+  async function startRecording() {
+    try {
+      hasStopped = false;
+      chunks = [];
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = pickAudioMime();
+      mediaRecorder = new MediaRecorder(mediaStream, mimeType ? { mimeType } : undefined);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+      mediaRecorder.onstop = async () => {
+        if (hasStopped) return;
+        hasStopped = true;
+        if (!chunks.length) return;
+
+        updateDebug("Recording stopped, sending for transcription…");
+        const blob = new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" });
+        if (!isTranscribing) await sendAudioForTranscription(blob);
+        mediaStream?.getTracks().forEach((t) => t.stop());
+      };
+
+      mediaRecorder.start();
+      isRecording = true;
+      micBtn.textContent = "🛑";
+      updateDebug("Recording started…");
+    } catch (err) {
+      updateDebug("Mic error: " + err.message);
+      createBubble("⚠️ I can't access your microphone.", "bot");
     }
+  }
+
+  function stopRecording() {
+    if (!isRecording || !mediaRecorder) return;
+    isRecording = false;
+    micBtn.textContent = "🎙️";
+    updateDebug("Stopping recording...");
+    mediaRecorder.stop();
+  }
+
+  async function sendAudioForTranscription(blob) {
+    if (isTranscribing) return;
+    isTranscribing = true;
+    try {
+      const ab = await blob.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+      const res = await fetch(transcribeEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audioBase64: base64,
+          mimeType: blob.type || "audio/webm",
+          fileName: blob.type.includes("mp4") ? "recording.mp4" : "recording.webm",
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { text } = await res.json();
+      if (text) {
+        input.value = text;
+        form.requestSubmit();
+      }
+    } catch (err) {
+      updateDebug("Transcription error: " + err.message);
+      createBubble("⚠️ Transcription failed. Try again.", "bot");
+    } finally {
+      isTranscribing = false;
+    }
+  }
+
+  micBtn.addEventListener("click", async () => {
+    if (!isRecording) await startRecording();
+    else stopRecording();
   });
-}
-
-
-  if (closeBtn && sidebar) {
-    closeBtn.addEventListener("click", closeSidebar);
-  }
-
-  if (overlay) {
-    overlay.addEventListener("click", closeSidebar);
-  }
 
   // === Enter-to-send ===
   input.addEventListener("keydown", (e) => {
@@ -177,7 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // === Form submit ===
   form.addEventListener("submit", async (e) => {
-    e.preventDefault(); // stop reload
+    e.preventDefault();
 
     const message = input.value.trim();
     if (!message) return;
@@ -226,7 +295,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
       updateDebug("Chat error: " + err.message);
       thinkingBubble.remove();
-      createBubble("🤖 My circuits got tangled. Can we try that again?", "bot");
+      createBubble("🤖 My circuits got tangled. Try again?", "bot");
     }
   });
 
