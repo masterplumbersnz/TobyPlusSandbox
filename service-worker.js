@@ -1,63 +1,47 @@
-const CACHE_NAME = "toby-plus-v2";
+const CACHE_NAME = "tobyplus-cache-v1";
+
+// ✅ Only include files you *know* exist in your repo
 const ASSETS_TO_CACHE = [
-  "/", // root
-  "/bot.html",
-  "/chatbot.js",
+  "/",                // root
+  "/bot.html",        // chatbot UI
+  "/chatbot.js",      // chatbot logic
   "/manifest.json",
   "/icons/icon-192.png",
-  "/icons/icon-512.png"
+  "icons/icon-512.png"
+  // Add your actual icons if they exist
+  // "/icons/icon-192.png",
+  // "/icons/icon-512.png"
 ];
 
-// Install and cache assets
 self.addEventListener("install", (event) => {
-  console.log("[SW] Install");
+  console.log("📥 Service Worker installing…");
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
-  self.skipWaiting(); // activate immediately
-});
-
-// Activate and clean old caches
-self.addEventListener("activate", (event) => {
-  console.log("[SW] Activate");
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
-
-// Intercept fetch requests
-self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-
-  // Don’t cache Netlify Functions — but provide offline fallback
-  if (url.pathname.startsWith("/.netlify/functions/")) {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return new Response(
-          JSON.stringify({ offline: true }),
-          {
-            headers: { "Content-Type": "application/json" },
-            status: 503,
-            statusText: "Offline"
-          }
-        );
-      })
-    );
-    return;
-  }
-
-  // Cache-first strategy for static assets
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return (
-        cached ||
-        fetch(event.request).catch(() => caches.match("/bot.html")) // offline fallback
+      return Promise.all(
+        ASSETS_TO_CACHE.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn("⚠️ Skipped caching:", url, err.message);
+          })
+        )
       );
     })
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  console.log("✅ Service Worker activated");
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+      )
+    )
+  );
+});
+
+// ✅ Network-first, fallback to cache
+self.addEventListener("fetch", (event) => {
+  event.respondWith(
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });
