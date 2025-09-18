@@ -7,6 +7,11 @@ document.addEventListener("DOMContentLoaded", () => {
   let thread_id = null;
   let currentConversationId = Date.now();
 
+  // === Recording globals ===
+  let mediaStream = null;
+  let mediaRecorder = null;
+  let chunks = [];
+
   // === Track current audio ===
   let currentAudio = null;
 
@@ -254,7 +259,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   micBtn.addEventListener("click", async () => {
-    unlockAudio(); // ✅ unlock audio on first mic tap
+    unlockAudio();
     if (!mediaRecorder || mediaRecorder.state === "inactive") {
       await startRecording();
     } else {
@@ -266,7 +271,7 @@ document.addEventListener("DOMContentLoaded", () => {
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      unlockAudio(); // ✅ unlock audio on first text send
+      unlockAudio();
       form.requestSubmit();
     }
   });
@@ -288,7 +293,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // === Form submit ===
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    unlockAudio(); // ✅ ensure audio unlocked before bot reply
+    unlockAudio();
 
     const message = input.value.trim();
     if (!message) return;
@@ -460,6 +465,20 @@ document.addEventListener("DOMContentLoaded", () => {
     saveConversation();
     return div;
   };
+
+  // === Scroll-to-bottom button ===
+  const scrollBtn = document.getElementById("scroll-bottom-btn");
+  messages.addEventListener("scroll", () => {
+    const nearBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 100;
+    if (nearBottom) {
+      scrollBtn.classList.remove("show");
+    } else {
+      scrollBtn.classList.add("show");
+    }
+  });
+  scrollBtn.addEventListener("click", () => {
+    messages.scrollTop = messages.scrollHeight;
+  });
 
   // === Init ===
   loadConversationList();
