@@ -1,4 +1,5 @@
 const fetch = require("node-fetch");
+const FormData = require("form-data"); // 👈 make sure form-data is installed
 
 const ALLOWED_ORIGINS = [
   "https://masterplumbers.org.nz",
@@ -33,9 +34,10 @@ exports.handler = async (event) => {
     const apiKey = process.env.OPENAI_API_KEY;
     const audioBuffer = Buffer.from(audioBase64, "base64");
 
+    // ✅ Use form-data for Node
     const formData = new FormData();
-    formData.append("file", new Blob([audioBuffer]), fileName);
-    formData.append("model", "gpt-4o-mini-transcribe");
+    formData.append("file", audioBuffer, { filename: fileName, contentType: mimeType });
+    formData.append("model", "whisper-1"); // 👈 stable model for transcriptions
 
     const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
@@ -44,7 +46,8 @@ exports.handler = async (event) => {
     });
 
     if (!response.ok) {
-      return { statusCode: response.status, headers: corsHeaders, body: await response.text() };
+      const errorText = await response.text();
+      return { statusCode: response.status, headers: corsHeaders, body: errorText };
     }
 
     const data = await response.json();
