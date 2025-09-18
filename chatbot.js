@@ -91,8 +91,6 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   document.querySelector(".button-group").appendChild(stopTalkBtn);
 
-  // ... (conversation save/load/sidebar code unchanged)
-
   // === Voice & Transcription ===
   const pickAudioMime = () => {
     if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus"))
@@ -156,7 +154,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const { text } = await res.json();
       if (text) {
         input.value = text;
-        form.requestSubmit();
+        // ✅ Safe submit fallback
+        if (typeof form.requestSubmit === "function") {
+          form.requestSubmit();
+        } else {
+          form.dispatchEvent(new Event("submit", { cancelable: true }));
+        }
       }
     } catch (err) {
       updateDebug("Transcription error: " + err.message);
@@ -172,6 +175,33 @@ document.addEventListener("DOMContentLoaded", () => {
       stopRecording();
     }
   });
+
+  // === Enter-to-send ===
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      unlockAudio();
+      if (typeof form.requestSubmit === "function") {
+        form.requestSubmit();
+      } else {
+        form.dispatchEvent(new Event("submit", { cancelable: true }));
+      }
+    }
+  });
+
+  // === Thinking bubble with typing dots ===
+  const createThinkingBubble = () => {
+    const div = document.createElement("div");
+    div.className = "bubble bot thinking";
+    div.innerHTML = `
+      <span class="typing-dots">
+        <span></span><span></span><span></span>
+      </span> Toby is thinking...
+    `;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    return div;
+  };
 
   // === Form submit ===
   form.addEventListener("submit", async (e) => {
@@ -216,7 +246,6 @@ document.addEventListener("DOMContentLoaded", () => {
           reply = data.reply || "(No response)";
           completed = true;
         } else {
-          // 🔧 Log actual error to console for debugging
           const errText = await checkRes.text();
           console.error("Check-run error:", checkRes.status, errText);
           throw new Error("check-run failed");
@@ -233,5 +262,139 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ... (rest of helpers, bubble creation, scroll button unchanged)
+  // === Helpers ===
+  const stripCitations = (text) => text.replace(/【\d+:\d+†[^†【】]+(?:†[^【】]*)?】/g, "");
+  const formatMarkdown = (text) =>
+    text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/^(\d+)\.\s+(.*)$/gm, "<p><strong>$1.</strong> $2</p>")
+      .replace(/\n{2,}/g, "<br><br>")
+      .replace(/\n/g, "<br>");
+
+  const createBubble = (content, sender, narrate = true) => {
+    const div = document.createElement("div");
+    const cleaned = stripCitations(content);
+    const formatted = formatMarkdown(cleaned);
+
+    if (sender === "bot") {
+      const wrapper = document.createElement("div");
+      wrapper.className = "bot-message";
+      const avatar = document.createElement("img");
+      avatar.src = "https://resilient-palmier-22bdf1.netlify.app/Toby-Avatar.svg";
+      avatar.alt = "Toby";
+      avatar.className = "avatar";
+
+      div.className = "bubble bot";
+      div.innerHTML = formatted;
+
+      const replayBtn = document.createElement("button");
+      replayBtn.textContent = "🔊";
+      replayBtn.className = "replay-btn";
+      replayBtn.onclick = async () => {
+        if (currentAudio && !currentAudio.paused) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+          currentAudio = null;
+          replayBtn.textContent = "🔊";
+          return;
+        }
+
+        window.speechSynthesis.cancel();
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+          currentAudio = null;
+        }
+
+        try {
+          if (div.dataset.hqAudio) {
+            currentAudio = new Audio(div.dataset.hqAudio);
+            replayBtn.textContent = "⏸️";
+
+            currentAudio.onended = () => {
+              replayBtn.textContent = "🔊";
+              currentAudio = null;
+            };
+
+            await currentAudio.play();
+          } else {
+            const plainText = div.innerText;
+            const utterance = new SpeechSynthesisUtterance(plainText);
+
+            replayBtn.textContent = "⏸️";
+            utterance.onend = () => {
+              replayBtn.textContent = "🔊";
+            };
+
+            window.speechSynthesis.speak(utterance);
+          }
+        } catch (err) {
+          console.warn("Replay failed, falling back:", err);
+          const plainText = div.innerText;
+          const utterance = new SpeechSynthesisUtterance(plainText);
+
+          replayBtn.textContent = "⏸️";
+          utterance.onend = () => {
+            replayBtn.textContent = "🔊";
+          };
+
+          window.speechSynthesis.speak(utterance);
+        }
+      };
+
+      wrapper.appendChild(avatar);
+      wrapper.appendChild(div);
+      wrapper.appendChild(replayBtn);
+      messages.appendChild(wrapper);
+
+      if (narrate && autoSpeakEnabled) {
+        window.speechSynthesis.cancel();
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+          currentAudio = null;
+        }
+        const plainText = div.innerText;
+        const utterance = new SpeechSynthesisUtterance(plainText);
+        window.speechSynthesis.speak(utterance);
+      }
+
+      fetch(ttsEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: cleaned, voice: "alloy", format: "mp3" })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.audioBase64) {
+            div.dataset.hqAudio = `data:${data.mimeType};base64,${data.audioBase64}`;
+          }
+        })
+        .catch(err => console.error("TTS generation failed:", err));
+    } else {
+      div.className = "bubble user";
+      div.innerHTML = content;
+      messages.appendChild(div);
+    }
+
+    messages.scrollTop = messages.scrollHeight;
+    saveConversation();
+    return div;
+  };
+
+  // === Scroll-to-bottom button ===
+  const scrollBtn = document.getElementById("scroll-bottom-btn");
+  messages.addEventListener("scroll", () => {
+    const nearBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 100;
+    if (nearBottom) {
+      scrollBtn.classList.remove("show");
+    } else {
+      scrollBtn.classList.add("show");
+    }
+  });
+  scrollBtn.addEventListener("click", () => {
+    messages.scrollTop = messages.scrollHeight;
+  });
+
+  // === Init ===
+  loadConversationList();
 });
