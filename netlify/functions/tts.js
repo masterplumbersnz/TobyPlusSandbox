@@ -6,7 +6,7 @@ const allowedOrigins = [
   "https://masterplumbers.org.nz",
   "https://resilient-palmier-22bdf1.netlify.app",
   "https://caitskinz.github.io/tobytest/", // replace with staging
-  "https://your-test-site-2.netlify.app", // replace with staging
+  "https://masterplumbersnz.github.io/TobyPlusSandbox", // replace with staging
   "http://localhost:8888",
 ];
 
