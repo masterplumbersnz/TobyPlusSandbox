@@ -27,36 +27,70 @@ exports.handler = async (event) => {
   try {
     const { thread_id, run_id } = JSON.parse(event.body || "{}");
     if (!thread_id || !run_id) {
-      return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: "Missing thread_id or run_id" }) };
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: "Missing thread_id or run_id" })
+      };
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
 
-    // Check run status
-    const runStatus = await fetch(`https://api.openai.com/v1/threads/${thread_id}/runs/${run_id}`, {
-      headers: { Authorization: `Bearer ${apiKey}`, "OpenAI-Beta": "assistants=v2" }
-    }).then((r) => r.json());
+    // 🔎 Poll run status
+    const runRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/runs/${run_id}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${apiKey}` }
+    });
 
-    if (runStatus.status === "in_progress" || runStatus.status === "queued") {
-      return { statusCode: 202, headers: corsHeaders, body: JSON.stringify({ status: runStatus.status }) };
+    if (!runRes.ok) {
+      const errText = await runRes.text();
+      console.error("Run check error:", errText);
+      return { statusCode: runRes.status, headers: corsHeaders, body: errText };
     }
 
-    // Fetch messages
-    const messages = await fetch(`https://api.openai.com/v1/threads/${thread_id}/messages`, {
-      headers: { Authorization: `Bearer ${apiKey}`, "OpenAI-Beta": "assistants=v2" }
-    }).then((r) => r.json());
+    const runData = await runRes.json();
 
-    const last = messages.data
-      .filter((m) => m.role === "assistant")
-      .sort((a, b) => b.created_at - a.created_at)[0];
+    if (runData.status === "in_progress" || runData.status === "queued") {
+      // Still processing
+      return { statusCode: 202, headers: corsHeaders, body: "" };
+    }
 
+    if (runData.status === "completed") {
+      // ✅ Fetch messages to get the reply
+      const msgRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/messages`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${apiKey}` }
+      });
+
+      if (!msgRes.ok) {
+        const errText = await msgRes.text();
+        console.error("Messages fetch error:", errText);
+        return { statusCode: msgRes.status, headers: corsHeaders, body: errText };
+      }
+
+      const msgData = await msgRes.json();
+      const lastMsg = msgData.data.find(m => m.role === "assistant");
+
+      return {
+        statusCode: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ reply: lastMsg?.content?.[0]?.text?.value || "" })
+      };
+    }
+
+    // ❌ If run errored/cancelled/etc
     return {
-      statusCode: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      body: JSON.stringify({ reply: last?.content?.[0]?.text?.value || "" })
+      statusCode: 500,
+      headers: corsHeaders,
+      body: JSON.stringify({ error: `Run ended with status: ${runData.status}` })
     };
+
   } catch (err) {
     console.error("check-run error:", err);
-    return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: "Internal server error" }) };
+    return {
+      statusCode: 500,
+      headers: corsHeaders,
+      body: JSON.stringify({ error: "Internal server error" })
+    };
   }
 };
