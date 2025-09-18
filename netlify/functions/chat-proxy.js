@@ -5,7 +5,8 @@ const fetch = require('node-fetch');
 const allowedOrigins = [
   'https://masterplumbers.org.nz',              // Production
   'https://resilient-palmier-22bdf1.netlify.app', // Staging 1
-  'https://caitskinz.github.io/tobytest/'                         // Local dev with Netlify CLI
+  'https://caitskinz.github.io/tobytest/',
+  "https://masterplumbersnz.github.io/TobyPlusSandbox'
 ];
 
 exports.handler = async (event) => {
