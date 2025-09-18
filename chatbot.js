@@ -91,7 +91,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       li.appendChild(titleSpan);
       li.appendChild(renameBtn);
-      li.onclick = () => loadConversation(conv.id);
+      li.onclick = () => {
+        loadConversation(conv.id);
+        closeSidebar(); // ✅ auto-close sidebar when selecting old conversation
+      };
       list.appendChild(li);
     });
   }
@@ -125,27 +128,37 @@ document.addEventListener("DOMContentLoaded", () => {
       currentConversationId = Date.now();
       messages.innerHTML = "";
       saveConversation();
+      closeSidebar(); // ✅ auto-close sidebar on New Chat
     });
   }
 
   // === Sidebar Toggle (Mobile) ===
   const toggleBtn = document.getElementById("toggle-conversations");
   const sidebar = document.getElementById("conversations-panel");
-  if (toggleBtn && sidebar) {
-    toggleBtn.addEventListener("click", () => {
-      sidebar.classList.toggle("open");
-    });
-  }
-
-  // ✅ NEW: Close button inside sidebar
   const closeBtn = document.getElementById("close-conversations");
-  if (closeBtn && sidebar) {
-    closeBtn.addEventListener("click", () => {
-      sidebar.classList.remove("open");
-    });
+  const overlay = document.getElementById("sidebar-overlay");
+
+  function openSidebar() {
+    sidebar.classList.add("open");
+    if (overlay) overlay.classList.add("active");
   }
 
+  function closeSidebar() {
+    sidebar.classList.remove("open");
+    if (overlay) overlay.classList.remove("active");
+  }
 
+  if (toggleBtn && sidebar) {
+    toggleBtn.addEventListener("click", openSidebar);
+  }
+
+  if (closeBtn && sidebar) {
+    closeBtn.addEventListener("click", closeSidebar);
+  }
+
+  if (overlay) {
+    overlay.addEventListener("click", closeSidebar);
+  }
 
   // === Enter-to-send ===
   input.addEventListener("keydown", (e) => {
