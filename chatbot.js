@@ -10,6 +10,32 @@ document.addEventListener("DOMContentLoaded", () => {
   // === Track current audio ===
   let currentAudio = null;
 
+  // === Mobile Audio Unlock ===
+  let audioUnlocked = false;
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    try {
+      // Unlock Web Audio
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      ctx.resume();
+
+      // Unlock SpeechSynthesis
+      const utterance = new SpeechSynthesisUtterance(".");
+      utterance.volume = 0;
+      window.speechSynthesis.speak(utterance);
+
+      console.log("🔓 Audio + speech unlocked for mobile");
+    } catch (e) {
+      console.warn("Audio unlock failed:", e);
+    }
+  }
+
   // === Endpoints ===
   const transcribeEndpoint = "https://tobyplussandbox.netlify.app/.netlify/functions/transcribe";
   const ttsEndpoint = "https://tobyplussandbox.netlify.app/.netlify/functions/tts";
@@ -40,9 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
   stopTalkBtn.className = "stop-talk-btn";
   stopTalkBtn.title = "Stop playback";
   stopTalkBtn.onclick = () => {
-    // Cancel browser speech
     window.speechSynthesis.cancel();
-    // Stop HQ audio
     if (currentAudio) {
       currentAudio.pause();
       currentAudio.currentTime = 0;
@@ -230,6 +254,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   micBtn.addEventListener("click", async () => {
+    unlockAudio(); // ✅ unlock audio on first mic tap
     if (!mediaRecorder || mediaRecorder.state === "inactive") {
       await startRecording();
     } else {
@@ -241,6 +266,7 @@ document.addEventListener("DOMContentLoaded", () => {
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      unlockAudio(); // ✅ unlock audio on first text send
       form.requestSubmit();
     }
   });
@@ -262,6 +288,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // === Form submit ===
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    unlockAudio(); // ✅ ensure audio unlocked before bot reply
 
     const message = input.value.trim();
     if (!message) return;
@@ -343,7 +370,6 @@ document.addEventListener("DOMContentLoaded", () => {
       replayBtn.textContent = "🔊";
       replayBtn.className = "replay-btn";
       replayBtn.onclick = async () => {
-        // If already playing, stop and reset
         if (currentAudio && !currentAudio.paused) {
           currentAudio.pause();
           currentAudio.currentTime = 0;
@@ -352,7 +378,6 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // Cancel any existing speech first
         window.speechSynthesis.cancel();
         if (currentAudio) {
           currentAudio.pause();
@@ -401,7 +426,6 @@ document.addEventListener("DOMContentLoaded", () => {
       wrapper.appendChild(replayBtn);
       messages.appendChild(wrapper);
 
-      // 🔊 Auto-speak (cancel anything already playing first)
       if (narrate && autoSpeakEnabled) {
         window.speechSynthesis.cancel();
         if (currentAudio) {
@@ -414,7 +438,6 @@ document.addEventListener("DOMContentLoaded", () => {
         window.speechSynthesis.speak(utterance);
       }
 
-      // Pre-generate HQ audio
       fetch(ttsEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
