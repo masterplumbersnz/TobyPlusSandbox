@@ -39,6 +39,17 @@ document.addEventListener("DOMContentLoaded", () => {
   document.body.appendChild(debugOverlay);
   const updateDebug = (msg) => (debugOverlay.innerText = msg);
 
+  // === Auto-Speak Toggle ===
+  let autoSpeakEnabled = true; // ✅ default ON
+  const toggleSpeakBtn = document.getElementById("toggle-speak");
+  if (toggleSpeakBtn) {
+    toggleSpeakBtn.addEventListener("click", () => {
+      autoSpeakEnabled = !autoSpeakEnabled;
+      toggleSpeakBtn.textContent = autoSpeakEnabled ? "🔈 Auto-Speak: On" : "🔇 Auto-Speak: Off";
+      toggleSpeakBtn.classList.toggle("off", !autoSpeakEnabled);
+    });
+  }
+
   // === Conversation Storage ===
   function saveConversation() {
     const allBubbles = [...messages.querySelectorAll(".bubble")];
@@ -349,8 +360,8 @@ document.addEventListener("DOMContentLoaded", () => {
       wrapper.appendChild(replayBtn);
       messages.appendChild(wrapper);
 
-      // 🔊 Auto-speak immediately
-      if (narrate) {
+      // 🔊 Auto-speak immediately (only if enabled)
+      if (narrate && autoSpeakEnabled) {
         const plainText = div.innerText;
         const utterance = new SpeechSynthesisUtterance(plainText);
         window.speechSynthesis.speak(utterance);
