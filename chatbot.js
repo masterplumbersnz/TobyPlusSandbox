@@ -465,6 +465,32 @@ document.addEventListener("DOMContentLoaded", () => {
     messages.scrollTop = messages.scrollHeight;
   });
 
+    // === Sidebar toggle (mobile) ===
+  const toggleBtn = document.getElementById("toggle-conversations");
+  const sidebar = document.getElementById("conversations-panel");
+  const overlay = document.getElementById("sidebar-overlay");
+  const closeBtn = document.getElementById("close-conversations");
+
+  function closeSidebar() {
+    sidebar?.classList.remove("open");
+    overlay?.classList.remove("active");
+  }
+
+  if (toggleBtn && sidebar) {
+    toggleBtn.addEventListener("click", () => {
+      sidebar.classList.toggle("open");
+      overlay?.classList.toggle("active");
+    });
+  }
+
+  if (overlay && sidebar) {
+    overlay.addEventListener("click", closeSidebar);
+  }
+
+  if (closeBtn && sidebar) {
+    closeBtn.addEventListener("click", closeSidebar);
+  }
+
   // === Init ===
   loadConversationList();
 });
