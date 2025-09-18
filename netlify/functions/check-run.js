@@ -39,7 +39,10 @@ exports.handler = async (event) => {
     // 🔎 Poll run status
     const runRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/runs/${run_id}`, {
       method: "GET",
-      headers: { Authorization: `Bearer ${apiKey}` }
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "OpenAI-Beta": "assistants=v2"
+      }
     });
 
     if (!runRes.ok) {
@@ -51,7 +54,6 @@ exports.handler = async (event) => {
     const runData = await runRes.json();
 
     if (runData.status === "in_progress" || runData.status === "queued") {
-      // Still processing
       return { statusCode: 202, headers: corsHeaders, body: "" };
     }
 
@@ -59,7 +61,10 @@ exports.handler = async (event) => {
       // ✅ Fetch messages to get the reply
       const msgRes = await fetch(`https://api.openai.com/v1/threads/${thread_id}/messages`, {
         method: "GET",
-        headers: { Authorization: `Bearer ${apiKey}` }
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "OpenAI-Beta": "assistants=v2"
+        }
       });
 
       if (!msgRes.ok) {
@@ -78,7 +83,6 @@ exports.handler = async (event) => {
       };
     }
 
-    // ❌ If run errored/cancelled/etc
     return {
       statusCode: 500,
       headers: corsHeaders,
