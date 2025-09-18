@@ -347,48 +347,53 @@
 }
 
 
-    /* ✅ Mobile tweaks */
-    @media (max-width: 600px) {
-      #conversations-panel {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 100%;
-        max-width: 100%;
-        z-index: 999;
-        transform: translateY(-100%);
-        background: #fafafa;
-        transition: transform 0.3s ease;
-      }
+   /* ✅ Mobile tweaks */
+@media (max-width: 600px) {
+  #conversations-panel {
+    position: fixed;
+    top: 0;
+    left: -260px;        /* hidden off screen */
+    height: 100%;
+    width: 260px;
+    z-index: 999;
+    background: #fafafa;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+    transition: left 0.3s ease;
+  }
 
-      #conversations-panel.open {
-        transform: translateY(0);
-      }
+  #conversations-panel.open {
+    left: 0;             /* slide into view */
+  }
 
-      #sidebar-overlay.active {
-        display: block;
-      }
+  #sidebar-overlay.active {
+    display: block;
+  }
 
-      .close-btn {
-        display: block;
-      }
+  .close-btn {
+    display: block;
+  }
 
-      .mobile-toggle {
-        display: block;
-        padding: 0.5rem;
-        background: #5ac5cc;
-        color: white;
-        font-weight: bold;
-        border: none;
-        cursor: pointer;
-        font-size: 1.0rem;
-      }
+  .mobile-toggle {
+    display: block;
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 1100;       /* higher than sidebar */
+    padding: 0.5rem 1rem;
+    background: #5ac5cc;
+    color: white;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    border-radius: 6px;
+  }
 
-      #app-container {
-        flex-direction: column;
-      }
-    }
+  #app-container {
+    flex-direction: column;
+  }
+}
+
   </style>
 </head>
 
