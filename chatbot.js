@@ -116,7 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadConversationList();
   }
 
-  function loadConversationList() {
+ function loadConversationList() {
   const conversations = JSON.parse(localStorage.getItem("conversations") || "[]");
   const list = document.getElementById("conversations-list");
   if (!list) return;
@@ -125,14 +125,24 @@ document.addEventListener("DOMContentLoaded", () => {
   conversations.forEach(conv => {
     const li = document.createElement("li");
 
+    // Conversation title
     const titleSpan = document.createElement("span");
     titleSpan.textContent = conv.title;
+    titleSpan.style.flex = "1"; // take up remaining space
+
+    // Actions container
+    const actions = document.createElement("div");
+    actions.style.display = "flex";
+    actions.style.gap = "4px"; // small space between buttons
 
     // ✏️ Rename button
     const renameBtn = document.createElement("button");
     renameBtn.textContent = "✏️";
-    renameBtn.style.marginLeft = "8px";
     renameBtn.style.fontSize = "12px";
+    renameBtn.style.padding = "2px 4px";
+    renameBtn.style.border = "none";
+    renameBtn.style.background = "transparent";
+    renameBtn.style.cursor = "pointer";
     renameBtn.onclick = (e) => {
       e.stopPropagation();
       const newName = prompt("Rename conversation:", conv.title);
@@ -146,8 +156,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // 🗑 Delete button
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "🗑️";
-    deleteBtn.style.marginLeft = "4px";
     deleteBtn.style.fontSize = "12px";
+    deleteBtn.style.padding = "2px 4px";
+    deleteBtn.style.border = "none";
+    deleteBtn.style.background = "transparent";
+    deleteBtn.style.cursor = "pointer";
     deleteBtn.onclick = (e) => {
       e.stopPropagation();
       const confirmed = confirm(`Delete conversation "${conv.title}"?`);
@@ -158,11 +171,18 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
 
-    // ✅ Add elements to LI
-    li.appendChild(titleSpan);
-    li.appendChild(renameBtn);
-    li.appendChild(deleteBtn);
+    actions.appendChild(renameBtn);
+    actions.appendChild(deleteBtn);
 
+    // Put title on left, actions on right
+    li.style.display = "flex";
+    li.style.justifyContent = "space-between";
+    li.style.alignItems = "center";
+
+    li.appendChild(titleSpan);
+    li.appendChild(actions);
+
+    // Load chat on click (but not when clicking buttons)
     li.onclick = () => {
       loadConversation(conv.id);
       closeSidebar?.(); // auto-close on mobile
@@ -171,6 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
     list.appendChild(li);
   });
 }
+
 
   function loadConversation(id) {
     const conversations = JSON.parse(localStorage.getItem("conversations") || "[]");
