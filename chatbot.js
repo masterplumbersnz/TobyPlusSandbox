@@ -498,6 +498,27 @@ document.addEventListener("DOMContentLoaded", () => {
     closeBtn.addEventListener("click", closeSidebar);
   }
 
+    // === New Chat ===
+  const newConvBtn = document.getElementById("new-conversation");
+  if (newConvBtn) {
+    newConvBtn.addEventListener("click", () => {
+      currentConversationId = Date.now();
+      messages.innerHTML = "";
+      saveConversation();
+      closeSidebar(); // ✅ auto-close sidebar on mobile
+    });
+  }
+
+  // === Clear Conversations ===
+  const clearBtn = document.getElementById("clear-conversations");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      localStorage.removeItem("conversations");
+      loadConversationList();
+      closeSidebar(); // ✅ auto-close sidebar on mobile
+    });
+  }
+
 
   // === Init ===
   loadConversationList();
