@@ -117,40 +117,60 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function loadConversationList() {
-    const conversations = JSON.parse(localStorage.getItem("conversations") || "[]");
-    const list = document.getElementById("conversations-list");
-    if (!list) return;
-    list.innerHTML = "";
+  const conversations = JSON.parse(localStorage.getItem("conversations") || "[]");
+  const list = document.getElementById("conversations-list");
+  if (!list) return;
+  list.innerHTML = "";
 
-    conversations.forEach(conv => {
-      const li = document.createElement("li");
+  conversations.forEach(conv => {
+    const li = document.createElement("li");
 
-      const titleSpan = document.createElement("span");
-      titleSpan.textContent = conv.title;
+    const titleSpan = document.createElement("span");
+    titleSpan.textContent = conv.title;
 
-      const renameBtn = document.createElement("button");
-      renameBtn.textContent = "✏️";
-      renameBtn.style.marginLeft = "8px";
-      renameBtn.style.fontSize = "12px";
-      renameBtn.onclick = (e) => {
-        e.stopPropagation();
-        const newName = prompt("Rename conversation:", conv.title);
-        if (newName && newName.trim()) {
-          conv.title = newName.trim();
-          localStorage.setItem("conversations", JSON.stringify(conversations));
-          loadConversationList();
-        }
-      };
+    // ✏️ Rename button
+    const renameBtn = document.createElement("button");
+    renameBtn.textContent = "✏️";
+    renameBtn.style.marginLeft = "8px";
+    renameBtn.style.fontSize = "12px";
+    renameBtn.onclick = (e) => {
+      e.stopPropagation();
+      const newName = prompt("Rename conversation:", conv.title);
+      if (newName && newName.trim()) {
+        conv.title = newName.trim();
+        localStorage.setItem("conversations", JSON.stringify(conversations));
+        loadConversationList();
+      }
+    };
 
-      li.appendChild(titleSpan);
-      li.appendChild(renameBtn);
-      li.onclick = () => {
-        loadConversation(conv.id);
-        closeSidebar?.();
-      };
-      list.appendChild(li);
-    });
-  }
+    // 🗑 Delete button
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "🗑️";
+    deleteBtn.style.marginLeft = "4px";
+    deleteBtn.style.fontSize = "12px";
+    deleteBtn.onclick = (e) => {
+      e.stopPropagation();
+      const confirmed = confirm(`Delete conversation "${conv.title}"?`);
+      if (confirmed) {
+        const updated = conversations.filter(c => c.id !== conv.id);
+        localStorage.setItem("conversations", JSON.stringify(updated));
+        loadConversationList();
+      }
+    };
+
+    // ✅ Add elements to LI
+    li.appendChild(titleSpan);
+    li.appendChild(renameBtn);
+    li.appendChild(deleteBtn);
+
+    li.onclick = () => {
+      loadConversation(conv.id);
+      closeSidebar?.(); // auto-close on mobile
+    };
+
+    list.appendChild(li);
+  });
+}
 
   function loadConversation(id) {
     const conversations = JSON.parse(localStorage.getItem("conversations") || "[]");
